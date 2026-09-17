@@ -1,0 +1,31 @@
+# Environment files hold secrets (APP_SECRET_KEY, ADMIN_PASSWORD); only the
+# examples are committed.
+.env
+.env.*
+!.env.example
+
+# Web (Next.js)
+node_modules/
+web/.next/
+web/out/
+web/next-env.d.ts
+*.tsbuildinfo
+
+# API (Go)
+api/bin/
+api/server
+*.test
+*.out
+coverage.*
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

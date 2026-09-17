@@ -1,0 +1,72 @@
+services:
+  appdb:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: dbcompare
+      POSTGRES_USER: dbcompare
+      POSTGRES_PASSWORD: dbcompare
+    volumes:
+      - appdb-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbcompare -d dbcompare"]
+      interval: 5s
+      retries: 20
+
+  api:
+    build: ./api
+    environment:
+      APP_DATABASE_URL: postgres://dbcompare:dbcompare@appdb:5432/dbcompare?sslmode=disable
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?set APP_SECRET_KEY in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SESSION_TTL: ${SESSION_TTL:-12h}
+      RETENTION_DAYS: ${RETENTION_DAYS:-30}
+      MAX_PARALLEL_TABLES: ${MAX_PARALLEL_TABLES:-8}
+      MAX_CONNS_PER_DB: ${MAX_CONNS_PER_DB:-10}
+      QUERY_TIMEOUT: ${QUERY_TIMEOUT:-30m}
+    depends_on:
+      appdb:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      args:
+        API_ORIGIN: http://api:8080
+    depends_on:
+      - api
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8088:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+      - web
+
+  # Sample databases with known differences: docker compose --profile samples up
+  sample-mysql:
+    profiles: ["samples"]
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./deploy/seed/mysql:/docker-entrypoint-initdb.d:ro
+
+  sample-postgres:
+    profiles: ["samples"]
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./deploy/seed/postgres:/docker-entrypoint-initdb.d:ro
+
+volumes:
+  appdb-data:
